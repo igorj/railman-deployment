@@ -34,10 +34,29 @@ Add `require 'railman/deployment'` to Capfile and you'll get following capistran
 
 - `cap ENV setup`         => Setup rails application for the first time on a server
 - `cap ENV deploy`        => Deploy rails application
+- `cap ENV update`        => Synchronize local database with the production database; sync files if any (see `:sync_dirs`)
 - `cap ENV remove`        => Remove the application completely from the server
-- `cap ENV reset_server`  => Recreate server database from db/<application_name>.sql
-- `cap ENV update`        => Synchronize local database with the production database
+- `cap ENV reset_server`  => Recreate server database from db/<application_name>.sql and sync local files to server (see `:sync_dirs`)
 
+Specify deployment settings in `config/deploy.rb` and `config/deploy/production.rb`.
+
+Example deploy.rb: 
+
+```ruby
+set :application, 'first'
+set :repo_url, 'git@bitbucket.org:mmustermann/first.git'
+append :sync_dirs, 'public/system', 'uploads'
+set :log_level, :info
+```
+
+Example production.rb:
+
+```ruby
+set :server, 'prod.myapp.com'
+set :user, 'deploy'
+server fetch(:server), user: fetch(:user), roles: %w{web app db}
+# set :deploy_branch, 'another'
+```
 
 ## Development
 
