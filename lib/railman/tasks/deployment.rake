@@ -4,9 +4,9 @@ task :setup do
     with fetch(:environment) do
       if test "[ -d #{fetch(:deploy_to)} ]"
         invoke :fetch_and_reset_git_repository
-        invoke :sync_local_dirs_to_server
       else
         execute :git, :clone, fetch(:repo_url), fetch(:deploy_to)
+        invoke :sync_local_dirs_to_server
       end
       server_conf_dir = "#{fetch(:deploy_to)}/config/server"
       execute :ln, "-s -f #{server_conf_dir}/nginx.conf /etc/nginx/conf.d/#{fetch(:application)}.conf"
@@ -89,6 +89,7 @@ task :reset_server do
       within fetch(:deploy_to) do
         execute :eye, :load, 'Eyefile'
         execute :eye, :stop, fetch(:application)
+        sleep 6 # seconds
         invoke :fetch_and_reset_git_repository
         execute :rake, 'db:drop'
         invoke :create_database_from_sql_file
