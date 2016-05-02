@@ -3,10 +3,8 @@ task :setup do
   on roles(:all) do
     with fetch(:environment) do
       if test "[ -d #{fetch(:deploy_to)} ]"
-        within fetch(:deploy_to) do
-          invoke :fetch_and_reset_git_repository
-          invoke :sync_local_dirs_to_server
-        end
+        invoke :fetch_and_reset_git_repository
+        invoke :sync_local_dirs_to_server
       else
         execute :git, :clone, fetch(:repo_url), fetch(:deploy_to)
       end
@@ -103,30 +101,46 @@ task :reset_server do
 end
 
 task :sync_local_dirs_to_server do
-  fetch(:sync_dirs, []).each do |sync_dir|
-    run_locally do
-      execute "rsync -avz --delete -e ssh ./#{sync_dir}/ #{fetch(:user)}@#{fetch(:server)}:#{fetch(:deploy_to)}/#{sync_dir}/"
+  on roles(:all) do
+    fetch(:sync_dirs, []).each do |sync_dir|
+      run_locally do
+        execute "rsync -avz --delete -e ssh ./#{sync_dir}/ #{fetch(:user)}@#{fetch(:server)}:#{fetch(:deploy_to)}/#{sync_dir}/"
+      end
     end
   end
 end
 
 task :sync_local_dirs_from_server do
-  fetch(:sync_dirs, []).each do |sync_dir|
-    run_locally do
-      execute "rsync -avzm --delete --force -e ssh #{fetch(:user)}@#{fetch(:server)}:#{fetch(:deploy_to)}/#{sync_dir}/ ./#{sync_dir}/"
+  on roles(:all) do
+    fetch(:sync_dirs, []).each do |sync_dir|
+      run_locally do
+        execute "rsync -avzm --delete --force -e ssh #{fetch(:user)}@#{fetch(:server)}:#{fetch(:deploy_to)}/#{sync_dir}/ ./#{sync_dir}/"
+      end
     end
   end
 end
 
 task :fetch_and_reset_git_repository do
-  execute :git, :fetch, 'origin'
-  execute :git, :reset, "--hard origin/#{fetch(:deploy_branch, 'master')}"
+  on roles(:all) do
+    with fetch(:environment) do
+      within fetch(:deploy_to) do
+        execute :git, :fetch, 'origin'
+        execute :git, :reset, "--hard origin/#{fetch(:deploy_branch, 'master')}"
+      end
+    end
+  end
 end
 
 task :create_database_from_sql_file do
-  execute :rake, 'db:create'
-  if test "[ -f #{fetch(:deploy_to)}/db/#{fetch(:application)}.sql ]"
-    execute :psql, "-d #{fetch(:application)}_production", "-f db/#{fetch(:application)}.sql"
+  on roles(:all) do
+    with fetch(:environment) do
+      within fetch(:deploy_to) do
+        execute :rake, 'db:create'
+        if test "[ -f #{fetch(:deploy_to)}/db/#{fetch(:application)}.sql ]"
+          execute :psql, "-d #{fetch(:application)}_production", "-f db/#{fetch(:application)}.sql"
+        end
+        execute :rake, 'db:migrate'
+      end
+    end
   end
-  execute :rake, 'db:migrate'
 end
