@@ -1,2 +1,2 @@
 require_relative 'deployment/tasks'
-require_relative 'deployment/hooks'
+require_relative 'deployment/set_railman_env'

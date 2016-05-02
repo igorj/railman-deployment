@@ -36,7 +36,7 @@ Add `require 'railman/deployment'` to Capfile and you'll get following capistran
 - `cap ENV deploy`        => Deploy rails application
 - `cap ENV remove`        => Remove the application completely from the server
 - `cap ENV reset_server`  => Recreate server database from db/<application_name>.sql
-- `cap ENV sync_local`    => Synchronize local database with the production database
+- `cap ENV update`        => Synchronize local database with the production database
 
 
 ## Development

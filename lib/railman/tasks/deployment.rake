@@ -1,24 +1,11 @@
-task :set_railman_env do
-  set :deploy_to, "/home/deploy/apps/#{fetch(:application)}"
-  set :rbenv_home, '/home/deploy/.rbenv'
-  set :environment, {path: "#{fetch(:rbenv_home)}/shims:#{fetch(:rbenv_home)}/bin:$PATH", rails_env: 'production'}
-
-  SSHKit.config.command_map[:rake] = "#{fetch(:deploy_to)}/bin/rake"
-  %w(ln service start restart stop status).each do |cmd|
-    SSHKit.config.command_map[cmd.to_sym] = "sudo #{cmd}"
-  end
-  SSHKit.config.command_map[:eye] = "#{fetch(:rbenv_home)}/shims/eye"
-  SSHKit.config.command_map[:su_rm] = "sudo rm"
-end
-
-desc "Setup rails application for the first time on a server"
+desc 'Setup rails application for the first time on a server'
 task :setup do
   on roles(:all) do
     with fetch(:environment) do
       if test "[ -d #{fetch(:deploy_to)} ]"
         within fetch(:deploy_to) do
-          execute :git, :fetch, 'origin'
-          execute :git, :reset, '--hard origin/master'
+          invoke :fetch_and_reset_git_repository
+          invoke :sync_local_dirs_to_server
         end
       else
         execute :git, :clone, fetch(:repo_url), fetch(:deploy_to)
@@ -28,30 +15,27 @@ task :setup do
       execute :ln, "-s -f #{server_conf_dir}/letsencrypt.conf /etc/nginx/letsencrypt/#{fetch(:application)}.conf"
       execute :ln, "-s -f #{server_conf_dir}/logrotate.conf /etc/logrotate.d/#{fetch(:application)}"
       within fetch(:deploy_to) do
-        execute :bundle, :install, "--without development test"
+        execute :bundle, :install, '--without development test'
         execute :mkdir, "-p #{fetch(:deploy_to)}/tmp/pids"
         if test "[ -f #{fetch(:deploy_to)}/.env ]"
-          execute :rake, 'db:create'
-          if test "[ -f #{fetch(:deploy_to)}/db/#{fetch(:application)}.sql ]"
-            execute :psql, "-d #{fetch(:application)}_production", "-f db/#{fetch(:application)}.sql"
-          end
-          execute :rake, 'db:migrate'
+          invoke :create_database_from_sql_file
           execute :rake, 'assets:precompile'
           execute :eye, :load, 'Eyefile'
           execute :eye, :start, fetch(:application)
-          execute :service, "nginx restart"
+          execute :service, 'nginx restart'
         else
-          warn "TODO: Create .env on the server by copying from .env.example.production and modify your database and smtp settings."
-          warn "TODO: Create rails secret token with 'rake secret' and insert it into .env"
-          warn "TODO: Create ssl certificates by running the following command as root: /etc/letsencrypt/generate_letsencrypt.sh"
-          warn "TODO: Run 'cap ENV setup' again!"
+          execute :cp, '.env.example.production', '.env'
+          execute "sed -i -e 's/TODO: generate with: rake secret/#{SecureRandom.hex(64)}/g' #{fetch(:deploy_to)}/.env"
+          warn 'TODO: Edit .env and modify your database and smtp settings.'
+          warn 'TODO: Create ssl certificates by running the following command as root: /etc/letsencrypt/generate_letsencrypt.sh'
+          warn 'TODO: Run \'cap ENV setup\' again!'
         end
       end
     end
   end
 end
 
-desc "Remove the application completely from the server"
+desc 'Remove the application completely from the server'
 task :remove do
   on roles(:all) do
     with fetch(:environment) do
@@ -64,31 +48,30 @@ task :remove do
       execute :su_rm, "-f /etc/nginx/conf.d/#{fetch(:application)}.conf"
       execute :su_rm, "-f /etc/nginx/letsencrypt/#{fetch(:application)}.conf"
       execute :su_rm, "-f /etc/logrotate.d/#{fetch(:application)}"
-      execute :service, "nginx restart"
+      execute :service, 'nginx restart'
     end
   end
 end
 
-desc "Deploy rails application"
+desc 'Deploy rails application'
 task :deploy do
   on roles(:all) do
     with fetch(:environment) do
       within fetch(:deploy_to) do
-        execute :git, :fetch, 'origin'
-        execute :git, :reset, '--hard origin/master'
+        invoke :fetch_and_reset_git_repository
         execute :bundle, :install
         execute :rake, 'db:migrate'
         execute :rake, 'assets:precompile'
         execute :eye, :load, 'Eyefile'
         execute :eye, :restart, fetch(:application)
-        execute :service, "nginx restart"
+        execute :service, 'nginx restart'
       end
     end
   end
 end
 
-desc "Copy database from the server to the local machine"
-task :sync_local do
+desc 'Copy database from the server to the local machine'
+task :update do
   on roles(:all) do
     within fetch(:deploy_to) do
       execute :pg_dump, "-U deploy --clean #{fetch(:application)}_production > db/#{fetch(:application)}.sql"
@@ -97,27 +80,53 @@ task :sync_local do
   end
   run_locally do
     execute "psql -d #{fetch(:application)}_development -f db/#{fetch(:application)}.sql"
+    invoke :sync_local_dirs_from_server
   end
 end
 
-desc "Recreate server database from db/#{fetch(:application)}.sql"
+desc "Recreate server database from db/#{fetch(:application)}.sql and sync local dirs if any"
 task :reset_server do
   on roles(:all) do
     with fetch(:environment) do
       within fetch(:deploy_to) do
         execute :eye, :load, 'Eyefile'
         execute :eye, :stop, fetch(:application)
-        execute :git, :fetch, 'origin'
-        execute :git, :reset, '--hard origin/master'
+        invoke :fetch_and_reset_git_repository
         execute :rake, 'db:drop'
-        execute :rake, 'db:create'
-        if test "[ -f #{fetch(:deploy_to)}/db/#{fetch(:application)}.sql ]"
-          execute :psql, "-d #{fetch(:application)}_production", "-f db/#{fetch(:application)}.sql"
-        end
-        execute :rake, 'db:migrate'
+        invoke :create_database_from_sql_file
+        invoke :sync_local_dirs_to_server
         execute :eye, :start, fetch(:application)
-        execute :service, "nginx restart"
+        execute :service, 'nginx restart'
       end
     end
   end
+end
+
+task :sync_local_dirs_to_server do
+  fetch(:sync_dirs, []).each do |sync_dir|
+    run_locally do
+      execute "rsync -avz --delete -e ssh ./#{sync_dir}/ #{fetch(:user)}@#{fetch(:server)}:#{fetch(:deploy_to)}/#{sync_dir}/"
+    end
+  end
+end
+
+task :sync_local_dirs_from_server do
+  fetch(:sync_dirs, []).each do |sync_dir|
+    run_locally do
+      execute "rsync -avzm --delete --force -e ssh #{fetch(:user)}@#{fetch(:server)}:#{fetch(:deploy_to)}/#{sync_dir}/ ./#{sync_dir}/"
+    end
+  end
+end
+
+task :fetch_and_reset_git_repository do
+  execute :git, :fetch, 'origin'
+  execute :git, :reset, "--hard origin/#{fetch(:deploy_branch, 'master')}"
+end
+
+task :create_database_from_sql_file do
+  execute :rake, 'db:create'
+  if test "[ -f #{fetch(:deploy_to)}/db/#{fetch(:application)}.sql ]"
+    execute :psql, "-d #{fetch(:application)}_production", "-f db/#{fetch(:application)}.sql"
+  end
+  execute :rake, 'db:migrate'
 end
