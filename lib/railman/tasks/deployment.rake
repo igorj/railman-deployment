@@ -1,7 +1,3 @@
-set :deploy_to, "/home/deploy/apps/#{fetch(:application)}"
-set :rbenv_home, '/home/deploy/.rbenv'
-set :environment, {path: "#{fetch(:rbenv_home)}/shims:#{fetch(:rbenv_home)}/bin:$PATH", rails_env: 'production'}
-
 SSHKit.config.command_map[:rake] = "#{fetch(:deploy_to)}/bin/rake"
 %w(ln service start restart stop status).each do |cmd|
   SSHKit.config.command_map[cmd.to_sym] = "sudo #{cmd}"
