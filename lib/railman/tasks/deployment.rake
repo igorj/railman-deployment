@@ -1,10 +1,3 @@
-SSHKit.config.command_map[:rake] = "#{fetch(:deploy_to)}/bin/rake"
-%w(ln service start restart stop status).each do |cmd|
-  SSHKit.config.command_map[cmd.to_sym] = "sudo #{cmd}"
-end
-SSHKit.config.command_map[:eye] = "#{fetch(:rbenv_home)}/shims/eye"
-SSHKit.config.command_map[:su_rm] = "sudo rm"
-
 desc "Setup rails application for the first time on a server"
 task :setup do
   on roles(:all) do
