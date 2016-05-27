@@ -25,7 +25,7 @@ task :setup do
           execute :cp, '.env.example.production', '.env'
           execute "sed -i -e 's/TODO: generate with: rake secret/#{SecureRandom.hex(64)}/g' #{fetch(:deploy_to)}/.env"
           warn 'TODO: Edit .env and modify your database and smtp settings.'
-          warn 'TODO: Create ssl certificates by running the following command as root: /etc/letsencrypt/generate_letsencrypt.sh'
+          warn 'TODO: Create ssl certificates by running the following command as root: /etc/nginx/letsencrypt/generate_letsencrypt.sh'
           warn 'TODO: Run \'cap ENV setup\' again!'
         end
       end
