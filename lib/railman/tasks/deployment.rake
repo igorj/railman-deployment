@@ -18,8 +18,8 @@ task :setup do
         if test "[ -f #{fetch(:deploy_to)}/.env ]"
           invoke :create_database_from_sql_file
           execute :rake, 'assets:precompile'
-          execute :eye, :load, 'Eyefile'
-          execute :eye, :start, fetch(:application)
+          execute :leye, :load, 'Eyefile'
+          execute :leye, :start, fetch(:application)
           execute :service, 'nginx restart'
         else
           execute :cp, '.env.example.production', '.env'
@@ -38,8 +38,8 @@ task :remove do
   on roles(:all) do
     with fetch(:environment) do
       within fetch(:deploy_to) do
-        execute :eye, :load, 'Eyefile'
-        execute :eye, :stop, fetch(:application)
+        execute :leye, :load, 'Eyefile'
+        execute :leye, :stop, fetch(:application)
         execute :rake, 'db:drop'
         execute :su_rm, "-rf #{fetch(:deploy_to)}"
       end if test "[ -d #{fetch(:deploy_to)} ]"
@@ -60,8 +60,8 @@ task :deploy do
         execute :bundle, :install
         execute :rake, 'db:migrate'
         execute :rake, 'assets:precompile'
-        execute :eye, :load, 'Eyefile'
-        execute :eye, :restart, fetch(:application)
+        execute :leye, :load, 'Eyefile'
+        execute :leye, :restart, fetch(:application)
         execute :service, 'nginx restart'
       end
     end
@@ -87,14 +87,14 @@ task :reset_server do
   on roles(:all) do
     with fetch(:environment) do
       within fetch(:deploy_to) do
-        execute :eye, :load, 'Eyefile'
-        execute :eye, :stop, fetch(:application)
+        execute :leye, :load, 'Eyefile'
+        execute :leye, :stop, fetch(:application)
         sleep 6 # seconds
         invoke :fetch_and_reset_git_repository
         execute :rake, 'db:drop'
         invoke :create_database_from_sql_file
         invoke :sync_local_dirs_to_server
-        execute :eye, :start, fetch(:application)
+        execute :leye, :start, fetch(:application)
         execute :service, 'nginx restart'
       end
     end
