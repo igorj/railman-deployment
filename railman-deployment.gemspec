@@ -24,4 +24,5 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "coveralls"
 
   spec.add_dependency "capistrano", "~> 3.6.1"
+  spec.add_dependency "eye", "~> 0.9.2"
 end
