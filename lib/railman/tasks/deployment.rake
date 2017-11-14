@@ -9,8 +9,8 @@ task :setup do
         invoke :sync_local_dirs_to_server
       end
       server_conf_dir = "#{fetch(:deploy_to)}/config/server"
-      execute :ln, "-s -f #{server_conf_dir}/nginx.conf /etc/nginx/conf.d/#{fetch(:application)}.conf"
-      execute :ln, "-s -f #{server_conf_dir}/letsencrypt.conf /etc/nginx/letsencrypt/#{fetch(:application)}.conf"
+      execute :cp, "-s -f #{server_conf_dir}/nginx.conf /etc/nginx/sites-available/#{fetch(:domain)}"
+      execute :ln, "-s /etc/nginx/sites-available/#{fetch(:domain)}.conf /etc/nginx/sites-enabled/"
       execute :ln, "-s -f #{server_conf_dir}/logrotate.conf /etc/logrotate.d/#{fetch(:application)}"
       within fetch(:deploy_to) do
         execute :bundle, :install, '--without development test'
@@ -21,11 +21,11 @@ task :setup do
           execute :eye, :load, 'Eyefile'
           execute :eye, :start, fetch(:application)
           execute :service, 'nginx restart'
+          execute :certbot, "--nginx -d #{fetch(:domain)}"
         else
           execute :cp, '.env.example.production', '.env'
           execute "sed -i -e 's/TODO: generate with: rake secret/#{SecureRandom.hex(64)}/g' #{fetch(:deploy_to)}/.env"
           warn 'TODO: Edit .env and modify your database and smtp settings.'
-          warn 'TODO: Create ssl certificates by running the following command as root: /etc/nginx/letsencrypt/generate_letsencrypt.sh'
           warn 'TODO: Run \'cap ENV setup\' again!'
         end
       end
@@ -43,8 +43,8 @@ task :remove do
         execute :rake, 'db:drop'
         execute :su_rm, "-rf #{fetch(:deploy_to)}"
       end if test "[ -d #{fetch(:deploy_to)} ]"
-      execute :su_rm, "-f /etc/nginx/conf.d/#{fetch(:application)}.conf"
-      execute :su_rm, "-f /etc/nginx/letsencrypt/#{fetch(:application)}.conf"
+      execute :su_rm, "-f /etc/nginx/sites-enabled/#{fetch(:domain)}"
+      execute :su_rm, "-f /etc/nginx/sites-available/#{fetch(:domain)}"
       execute :su_rm, "-f /etc/logrotate.d/#{fetch(:application)}"
       execute :service, 'nginx restart'
     end
