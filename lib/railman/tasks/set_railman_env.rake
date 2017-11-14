@@ -7,7 +7,7 @@ task :set_railman_env do
   %w(ln service start restart stop status).each do |cmd|
     SSHKit.config.command_map[cmd.to_sym] = "sudo #{cmd}"
   end
-  SSHKit.config.command_map[:leye] = "#{fetch(:rbenv_home)}/shims/leye"
+  SSHKit.config.command_map[:eye] = "#{fetch(:rbenv_home)}/shims/eye"
   SSHKit.config.command_map[:su_rm] = 'sudo rm'
 end
 
