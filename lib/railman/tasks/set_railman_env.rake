@@ -4,7 +4,7 @@ task :set_railman_env do
   set :environment, {path: "#{fetch(:rbenv_home)}/shims:#{fetch(:rbenv_home)}/bin:$PATH", rails_env: 'production'}
 
   SSHKit.config.command_map[:rake] = "#{fetch(:deploy_to)}/bin/rake"
-  %w(ln service start restart stop status certbot).each do |cmd|
+  %w(ln cp service start restart stop status certbot).each do |cmd|
     SSHKit.config.command_map[cmd.to_sym] = "sudo #{cmd}"
   end
   SSHKit.config.command_map[:eye] = "#{fetch(:rbenv_home)}/shims/eye"

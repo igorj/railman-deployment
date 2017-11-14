@@ -9,8 +9,8 @@ task :setup do
         invoke :sync_local_dirs_to_server
       end
       server_conf_dir = "#{fetch(:deploy_to)}/config/server"
-      execute :cp, "-s -f #{server_conf_dir}/nginx.conf /etc/nginx/sites-available/#{fetch(:domain)}"
-      execute :ln, "-s /etc/nginx/sites-available/#{fetch(:domain)}.conf /etc/nginx/sites-enabled/"
+      execute :cp, "#{server_conf_dir}/nginx.conf /etc/nginx/sites-available/#{fetch(:domain)}"
+      execute :ln, "-s -f /etc/nginx/sites-available/#{fetch(:domain)}.conf /etc/nginx/sites-enabled/"
       execute :ln, "-s -f #{server_conf_dir}/logrotate.conf /etc/logrotate.d/#{fetch(:application)}"
       within fetch(:deploy_to) do
         execute :bundle, :install, '--without development test'
@@ -23,7 +23,7 @@ task :setup do
           execute :service, 'nginx restart'
           execute :certbot, "--nginx -d #{fetch(:domain)}"
         else
-          execute :cp, '.env.example.production', '.env'
+          execute 'cp .env.example.production', '.env'
           execute "sed -i -e 's/TODO: generate with: rake secret/#{SecureRandom.hex(64)}/g' #{fetch(:deploy_to)}/.env"
           warn 'TODO: Edit .env and modify your database and smtp settings.'
           warn 'TODO: Run \'cap ENV setup\' again!'
