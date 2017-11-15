@@ -17,7 +17,6 @@ task :setup do
         execute :mkdir, "-p #{fetch(:deploy_to)}/tmp/pids"
         if test "[ -f #{fetch(:deploy_to)}/.env ]"
           invoke :create_database_from_sql_file
-          execute :rake, 'assets:precompile'
           execute :eye, :load, 'Eyefile'
           execute :eye, :start, fetch(:application)
           execute :service, 'nginx restart'
@@ -59,7 +58,6 @@ task :deploy do
         invoke :fetch_and_reset_git_repository
         execute :bundle, :install
         execute :rake, 'db:migrate'
-        execute :rake, 'assets:precompile'
         execute :eye, :load, 'Eyefile'
         execute :eye, :restart, fetch(:application)
         execute :service, 'nginx restart'
