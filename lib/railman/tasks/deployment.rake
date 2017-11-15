@@ -23,7 +23,7 @@ task :setup do
           execute :service, 'nginx restart'
           execute :certbot, "--nginx -d #{fetch(:domain)}"
         else
-          execute 'cp .env.example.production', '.env'
+          execute 'cp .env.example.production .env'
           execute "sed -i -e 's/TODO: generate with: rake secret/#{SecureRandom.hex(64)}/g' #{fetch(:deploy_to)}/.env"
           warn 'TODO: Edit .env and modify your database and smtp settings.'
           warn 'TODO: Run \'cap ENV setup\' again!'
