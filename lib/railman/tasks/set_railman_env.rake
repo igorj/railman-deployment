@@ -16,6 +16,8 @@ end
 
 before :setup, :set_railman_env
 before :deploy, :set_railman_env
+before :deploy_spa, :set_railman_env
+before :deploy_all, :set_railman_env
 before :update, :set_railman_env
 before :reset_server, :set_railman_env
 before :remove, :set_railman_env
