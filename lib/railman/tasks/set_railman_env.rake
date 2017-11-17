@@ -15,6 +15,7 @@ task :set_railman_env do
 end
 
 before :setup, :set_railman_env
+before :setup_spa, :set_railman_env
 before :deploy, :set_railman_env
 before :deploy_spa, :set_railman_env
 before :deploy_all, :set_railman_env
