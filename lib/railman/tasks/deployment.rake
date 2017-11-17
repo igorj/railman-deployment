@@ -36,25 +36,23 @@ end
 desc 'Setup spa application for the first time on a server'
 task :setup_spa do
   on roles(:all) do
-    with fetch(:environment) do
-      server_conf_dir = "#{fetch(:deploy_to)}/config/server"
-      if fetch(:spa_application)
-        if test "[ -d #{fetch(:deploy_spa_to)} ]"
-          invoke :fetch_and_reset_spa_git_repository
-        else
-          execute :git, :clone, fetch(:spa_repo_url), fetch(:deploy_spa_to)
-        end
+    server_conf_dir = "#{fetch(:deploy_to)}/config/server"
+    if fetch(:spa_application)
+      if test "[ -d #{fetch(:deploy_spa_to)} ]"
+        invoke :fetch_and_reset_spa_git_repository
+      else
+        execute :git, :clone, fetch(:spa_repo_url), fetch(:deploy_spa_to)
+      end
 
-        within fetch(:deploy_spa_to) do
-          execute :mkdir, "-p #{fetch(:deploy_spa_to)}/public"
-          execute :yarn
-          execute :yarn, 'run build'
-          execute "rsync -avz --delete ./#{fetch(:deploy_spa_to)}/dist/ ./#{fetch(:deploy_spa_to)}/public/"
-          execute :cp, "#{server_conf_dir}/nginx_spa.conf /etc/nginx/sites-available/#{fetch(:spa_domain)}"
-          execute :ln, "-s -f /etc/nginx/sites-available/#{fetch(:spa_domain)} /etc/nginx/sites-enabled/"
-          execute :service, 'nginx restart'
-          execute :certbot, "--nginx -d #{fetch(:spa_domain)}"
-        end
+      within fetch(:deploy_spa_to) do
+        execute :mkdir, "-p #{fetch(:deploy_spa_to)}/public"
+        execute :yarn
+        execute :yarn, 'run build'
+        execute "rsync -avz --delete #{fetch(:deploy_spa_to)}/dist/ #{fetch(:deploy_spa_to)}/public/"
+        execute :cp, "#{server_conf_dir}/nginx_spa.conf /etc/nginx/sites-available/#{fetch(:spa_domain)}"
+        execute :ln, "-s -f /etc/nginx/sites-available/#{fetch(:spa_domain)} /etc/nginx/sites-enabled/"
+        execute :service, 'nginx restart'
+        execute :certbot, "--nginx -d #{fetch(:spa_domain)}"
       end
     end
   end
@@ -108,7 +106,7 @@ task :deploy_spa do
         invoke :fetch_and_reset_spa_git_repository
         execute :yarn
         execute :yarn, 'run build'
-        execute "rsync -avz --delete ./#{fetch(:deploy_spa_to)}/dist/ ./#{fetch(:deploy_spa_to)}/public/"
+        execute "rsync -avz --delete #{fetch(:deploy_spa_to)}/dist/ #{fetch(:deploy_spa_to)}/public/"
         execute :service, 'nginx restart'
       end if test "[ -d #{fetch(:deploy_spa_to)} ]"
     end
