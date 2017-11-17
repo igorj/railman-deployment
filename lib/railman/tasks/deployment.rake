@@ -10,7 +10,7 @@ task :setup do
       end
       server_conf_dir = "#{fetch(:deploy_to)}/config/server"
       execute :cp, "#{server_conf_dir}/nginx.conf /etc/nginx/sites-available/#{fetch(:domain)}"
-      execute :ln, "-s -f /etc/nginx/sites-available/#{fetch(:domain)}.conf /etc/nginx/sites-enabled/"
+      execute :ln, "-s -f /etc/nginx/sites-available/#{fetch(:domain)} /etc/nginx/sites-enabled/"
       execute :ln, "-s -f #{server_conf_dir}/logrotate.conf /etc/logrotate.d/#{fetch(:application)}"
       within fetch(:deploy_to) do
         execute :bundle, :install, '--without development test'
@@ -77,6 +77,13 @@ task :update do
   run_locally do
     execute "psql -d #{fetch(:application)}_development -f db/#{fetch(:application)}.sql"
     invoke :sync_local_dirs_from_server
+  end
+end
+
+if fetch(:spa_application)
+  desc 'Deploy vue.js SPA'
+  task :deploy_spa do
+    warn 'TODO: deploy spa'
   end
 end
 

@@ -1,5 +1,8 @@
 task :set_railman_env do
   set :deploy_to, "/home/deploy/apps/#{fetch(:application)}"
+  if fetch(:spa_application)
+    set :deploy_spa_to, "/home/deploy/sites/#{fetch(:spa_application)}"
+  end
   set :rbenv_home, '/home/deploy/.rbenv'
   set :environment, {path: "#{fetch(:rbenv_home)}/shims:#{fetch(:rbenv_home)}/bin:$PATH", rails_env: 'production'}
 
