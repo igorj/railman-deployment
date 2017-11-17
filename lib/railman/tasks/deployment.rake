@@ -2,6 +2,7 @@ desc 'Setup rails application for the first time on a server'
 task :setup do
   on roles(:all) do
     with fetch(:environment) do
+      # setup backend application
       if test "[ -d #{fetch(:deploy_to)} ]"
         invoke :fetch_and_reset_git_repository
       else
@@ -32,6 +33,33 @@ task :setup do
   end
 end
 
+desc 'Setup spa application for the first time on a server'
+task :setup_spa do
+  on roles(:all) do
+    with fetch(:environment) do
+      server_conf_dir = "#{fetch(:deploy_to)}/config/server"
+      if fetch(:spa_application)
+        if test "[ -d #{fetch(:deploy_spa_to)} ]"
+          invoke :fetch_and_reset_spa_git_repository
+        else
+          execute :git, :clone, fetch(:spa_repo_url), fetch(:deploy_spa_to)
+        end
+
+        within fetch(:deploy_spa_to) do
+          execute :mkdir, "-p #{fetch(:deploy_spa_to)}/public"
+          execute :yarn
+          execute :yarn, 'run build'
+          execute "rsync -avz --delete ./#{fetch(:deploy_spa_to)}/dist/ ./#{fetch(:deploy_spa_to)}/public/"
+          execute :cp, "#{server_conf_dir}/nginx_spa.conf /etc/nginx/sites-available/#{fetch(:spa_domain)}"
+          execute :ln, "-s -f /etc/nginx/sites-available/#{fetch(:spa_domain)} /etc/nginx/sites-enabled/"
+          execute :service, 'nginx restart'
+          execute :certbot, "--nginx -d #{fetch(:spa_domain)}"
+        end
+      end
+    end
+  end
+end
+
 desc 'Remove the application completely from the server'
 task :remove do
   on roles(:all) do
@@ -45,12 +73,17 @@ task :remove do
       execute :su_rm, "-f /etc/nginx/sites-enabled/#{fetch(:domain)}"
       execute :su_rm, "-f /etc/nginx/sites-available/#{fetch(:domain)}"
       execute :su_rm, "-f /etc/logrotate.d/#{fetch(:application)}"
+      if test "[ -d #{fetch(:deploy_spa_to)} ]"
+        execute :su_rm, "-rf #{fetch(:deploy_spa_to)}"
+        execute :su_rm, "-f /etc/nginx/sites-enabled/#{fetch(:spa_domain)}"
+        execute :su_rm, "-f /etc/nginx/sites-available/#{fetch(:spa_domain)}"
+      end
       execute :service, 'nginx restart'
     end
   end
 end
 
-desc 'Deploy rails application'
+desc 'Deploy rails application (and spa if configured)'
 task :deploy do
   on roles(:all) do
     with fetch(:environment) do
@@ -62,6 +95,22 @@ task :deploy do
         execute :eye, :restart, fetch(:application)
         execute :service, 'nginx restart'
       end
+      invoke :deploy_spa
+    end
+  end
+end
+
+desc 'Deploy SPA application'
+task :deploy_spa do
+  on roles(:all) do
+    with fetch(:environment) do
+      within fetch(:deploy_spa_to) do
+        invoke :fetch_and_reset_spa_git_repository
+        execute :yarn
+        execute :yarn, 'run build'
+        execute "rsync -avz --delete ./#{fetch(:deploy_spa_to)}/dist/ ./#{fetch(:deploy_spa_to)}/public/"
+        execute :service, 'nginx restart'
+      end if test "[ -d #{fetch(:deploy_spa_to)} ]"
     end
   end
 end
@@ -77,13 +126,6 @@ task :update do
   run_locally do
     execute "psql -d #{fetch(:application)}_development -f db/#{fetch(:application)}.sql"
     invoke :sync_local_dirs_from_server
-  end
-end
-
-if fetch(:spa_application)
-  desc 'Deploy vue.js SPA'
-  task :deploy_spa do
-    warn 'TODO: deploy spa'
   end
 end
 
@@ -132,6 +174,17 @@ task :fetch_and_reset_git_repository do
       within fetch(:deploy_to) do
         execute :git, :fetch, 'origin'
         execute :git, :reset, "--hard origin/#{fetch(:deploy_branch, 'master')}"
+      end
+    end
+  end
+end
+
+task :fetch_and_reset_spa_git_repository do
+  on roles(:all) do
+    with fetch(:environment) do
+      within fetch(:deploy_spa_to) do
+        execute :git, :fetch, 'origin'
+        execute :git, :reset, "--hard origin/#{fetch(:spa_deploy_branch, 'master')}"
       end
     end
   end
