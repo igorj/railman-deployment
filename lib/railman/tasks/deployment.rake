@@ -21,7 +21,7 @@ task :setup do
           execute :eye, :load, 'Eyefile'
           execute :eye, :start, fetch(:application)
           execute :service, 'nginx restart'
-          execute :certbot, "--nginx -d #{fetch(:domain)}"
+          warn "TODO: Run certbot--nginx -d #{fetch(:domain)} on the server as root to create a certificate"
         else
           execute "cp #{fetch(:deploy_to)}/.env.example.production #{fetch(:deploy_to)}/.env"
           execute "sed -i -e 's/TODO: generate with: rake secret/#{SecureRandom.hex(64)}/g' #{fetch(:deploy_to)}/.env"
@@ -52,7 +52,7 @@ task :setup_spa do
         execute :cp, "#{server_conf_dir}/nginx_spa.conf /etc/nginx/sites-available/#{fetch(:spa_domain)}"
         execute :ln, "-s -f /etc/nginx/sites-available/#{fetch(:spa_domain)} /etc/nginx/sites-enabled/"
         execute :service, 'nginx restart'
-        execute :certbot, "--nginx -d #{fetch(:spa_domain)}"
+        warn "TODO: Run certbot--nginx -d #{fetch(:spa_domain)} on the server as root to create a certificate"
       end
     end
   end
@@ -77,6 +77,7 @@ task :remove do
         execute :su_rm, "-f /etc/nginx/sites-available/#{fetch(:spa_domain)}"
       end
       execute :service, 'nginx restart'
+      warn 'TODO: Run certbot--nginx remove on the server as root to remove the certificate'
     end
   end
 end
