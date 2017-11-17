@@ -93,7 +93,6 @@ task :deploy do
         execute :eye, :restart, fetch(:application)
         execute :service, 'nginx restart'
       end
-      invoke :deploy_spa
     end
   end
 end
@@ -108,9 +107,15 @@ task :deploy_spa do
         execute :yarn, 'run build'
         execute "rsync -avz --delete #{fetch(:deploy_spa_to)}/dist/ #{fetch(:deploy_spa_to)}/public/"
         execute :service, 'nginx restart'
-      end if test "[ -d #{fetch(:deploy_spa_to)} ]"
+      end
     end
   end
+end
+
+desc 'Deploy both the rails application and the spa application'
+task :deploy_all do
+  invoke :deploy
+  invoke :deploy_spa
 end
 
 desc 'Copy database from the server to the local machine'
