@@ -9,48 +9,62 @@ task :setup do
         invoke :sync_local_dirs_to_server
       end
       server_conf_dir = "#{fetch(:deploy_to)}/config/server"
-      execute :ln, "-s -f #{server_conf_dir}/nginx.conf /etc/nginx/conf.d/#{fetch(:application)}.conf"
-      execute :ln, "-s -f #{server_conf_dir}/letsencrypt.conf /etc/nginx/letsencrypt/#{fetch(:application)}.conf"
-      execute :ln, "-s -f #{server_conf_dir}/logrotate.conf /etc/logrotate.d/#{fetch(:application)}"
+      execute :su_ln, "-s -f #{server_conf_dir}/puma.service /lib/systemd/system/#{fetch(:application)}.service"
+      execute :su_ln, "-s -f #{server_conf_dir}/sidekiq.service /lib/systemd/system/#{fetch(:application)}_sidekiq.service"
+      execute :su_ln, "-s -f #{server_conf_dir}/logrotate.conf /etc/logrotate.d/#{fetch(:application)}"
       within fetch(:deploy_to) do
+        upload! './config/master.key', "#{fetch(:deploy_to)}/config/master.key"
         execute :bundle, :install, '--without development test'
-        execute :mkdir, "-p #{fetch(:deploy_to)}/tmp/pids"
-        if test "[ -f #{fetch(:deploy_to)}/.env ]"
-          invoke :create_database_from_sql_file
-          execute :rake, 'assets:precompile'
-          execute :leye, :load, 'Eyefile'
-          execute :leye, :start, fetch(:application)
-          execute :service, 'nginx restart'
-        else
-          execute :cp, '.env.example.production', '.env'
-          execute "sed -i -e 's/TODO: generate with: rake secret/#{SecureRandom.hex(64)}/g' #{fetch(:deploy_to)}/.env"
-          warn 'TODO: Edit .env and modify your database and smtp settings.'
-          warn 'TODO: Create ssl certificates by running the following command as root: /etc/nginx/letsencrypt/generate_letsencrypt.sh'
-          warn 'TODO: Run \'cap ENV setup\' again!'
-        end
+        invoke :create_database_from_sql_file
+        execute :rake, 'assets:precompile'
+        execute :systemctl, :start, fetch(:application)
+        execute :systemctl, :start, "#{fetch(:application)}_sidekiq"
+        execute :systemctl, :enable, fetch(:application)
+        execute :systemctl, :enable, "#{fetch(:application)}_sidekiq"
+        # copy temporary simple nginx.conf only for getting letsencrypt certificate
+        nginx_conf = File.read(File.join(File.dirname(__FILE__), 'nginx.conf'))
+        nginx_conf.gsub!('DOMAINS', fetch(:domains).join(' '))
+        nginx_conf.gsub!('APPLICATION', fetch(:application))
+        upload! StringIO.new(nginx_conf), "/etc/nginx/conf.d/#{fetch(:application)}.conf"
+        execute :systemctl, :restart, :nginx
+        execute :certbot, "certonly --webroot -w /home/deploy/apps/#{fetch(:application)}/public #{fetch(:domains).collect { |d| '-d ' + d }.join(' ')} -n --agree-tos -m #{fetch(:certbot_email)} --deploy-hook 'systemctl reload nginx'"
+        # remove temporary nginx.conf and link config/server/nginx.conf to /etc/nginx/conf.d
+        execute :su_rm, "/etc/nginx/conf.d/#{fetch(:application)}.conf"
+        execute :su_ln, "-s -f #{server_conf_dir}/nginx.conf /etc/nginx/conf.d/#{fetch(:application)}.conf"
+        execute :systemctl, :restart, :nginx
       end
     end
   end
 end
 
+# todo
 desc 'Remove the application completely from the server'
 task :remove do
   on roles(:all) do
     with fetch(:environment) do
+      # dropt the database and remove the application directory from /home/deploy/apps
       within fetch(:deploy_to) do
-        execute :leye, :load, 'Eyefile'
-        execute :leye, :stop, fetch(:application)
         execute :rake, 'db:drop'
         execute :su_rm, "-rf #{fetch(:deploy_to)}"
       end if test "[ -d #{fetch(:deploy_to)} ]"
-      execute :su_rm, "-f /etc/nginx/conf.d/#{fetch(:application)}.conf"
-      execute :su_rm, "-f /etc/nginx/letsencrypt/#{fetch(:application)}.conf"
+      # stop, disable and remove systemd service files
+      execute :systemctl, :stop, fetch(:application)
+      execute :systemctl, :stop, "#{fetch(:application)}_sidekiq"
+      execute :systemctl, :disable, fetch(:application)
+      execute :systemctl, :disable, "#{fetch(:application)}_sidekiq"
+      execute :su_rm, "-f /lib/systemd/system/#{fetch(:application)}.service"
+      execute :su_rm, "-f /lib/systemd/system/#{fetch(:application)}_sidekiq.service"
+      # remove application nginx configuration
+      execute :su_rm, "-f /etc/nginx/conf.d/#{fetch(:application)}"
+      execute :systemctl, :restart, :nginx
+      # remove logrotate configuration
       execute :su_rm, "-f /etc/logrotate.d/#{fetch(:application)}"
-      execute :service, 'nginx restart'
+      # todo remove letsencrypt certificates and renew cron job
     end
   end
 end
 
+# OK!
 desc 'Deploy rails application'
 task :deploy do
   on roles(:all) do
@@ -60,14 +74,15 @@ task :deploy do
         execute :bundle, :install
         execute :rake, 'db:migrate'
         execute :rake, 'assets:precompile'
-        execute :leye, :load, 'Eyefile'
-        execute :leye, :restart, fetch(:application)
-        execute :service, 'nginx restart'
+        execute :systemctl, :restart, fetch(:application)
+        execute :systemctl, :restart, "#{fetch(:application)}_sidekiq"
+        execute :systemctl, :restart, :nginx
       end
     end
   end
 end
 
+# OK!
 desc 'Copy database from the server to the local machine'
 task :update do
   on roles(:all) do
@@ -82,25 +97,27 @@ task :update do
   end
 end
 
+# OK!
 desc "Recreate server database from db/#{fetch(:application)}.sql and sync local dirs if any"
 task :reset_server do
   on roles(:all) do
     with fetch(:environment) do
       within fetch(:deploy_to) do
-        execute :leye, :load, 'Eyefile'
-        execute :leye, :stop, fetch(:application)
-        sleep 6 # seconds
+        execute :systemctl, :stop, fetch(:application)
+        execute :systemctl, :stop, "#{fetch(:application)}_sidekiq"
         invoke :fetch_and_reset_git_repository
         execute :rake, 'db:drop'
         invoke :create_database_from_sql_file
         invoke :sync_local_dirs_to_server
-        execute :leye, :start, fetch(:application)
-        execute :service, 'nginx restart'
+        execute :systemctl, :restart, fetch(:application)
+        execute :systemctl, :restart, "#{fetch(:application)}_sidekiq"
+        execute :systemctl, :restart, :nginx
       end
     end
   end
 end
 
+# OK!
 task :sync_local_dirs_to_server do
   on roles(:all) do
     fetch(:sync_dirs, []).each do |sync_dir|
@@ -111,6 +128,7 @@ task :sync_local_dirs_to_server do
   end
 end
 
+# OK!
 task :sync_local_dirs_from_server do
   on roles(:all) do
     fetch(:sync_dirs, []).each do |sync_dir|
@@ -121,6 +139,7 @@ task :sync_local_dirs_from_server do
   end
 end
 
+# OK!
 task :fetch_and_reset_git_repository do
   on roles(:all) do
     with fetch(:environment) do
@@ -132,15 +151,18 @@ task :fetch_and_reset_git_repository do
   end
 end
 
+# OK!
 task :create_database_from_sql_file do
   on roles(:all) do
     with fetch(:environment) do
       within fetch(:deploy_to) do
         execute :rake, 'db:create'
+        execute :rake, 'db:migrate'
+        execute :rake, 'db:seed'
         if test "[ -f #{fetch(:deploy_to)}/db/#{fetch(:application)}.sql ]"
           execute :psql, "-d #{fetch(:application)}_production", "-f db/#{fetch(:application)}.sql"
+          execute :rake, 'db:migrate'
         end
-        execute :rake, 'db:migrate'
       end
     end
   end
