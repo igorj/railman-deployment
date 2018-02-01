@@ -17,6 +17,7 @@ task :setup do
         execute :bundle, :install, '--without development test'
         invoke :create_database_from_sql_file
         execute :rake, 'assets:precompile'
+        execute :systemctl, 'daemon-reload'
         execute :systemctl, :start, fetch(:application)
         execute :systemctl, :start, "#{fetch(:application)}_sidekiq"
         execute :systemctl, :enable, fetch(:application)
@@ -25,7 +26,8 @@ task :setup do
         nginx_conf = File.read(File.join(File.dirname(__FILE__), 'nginx.conf'))
         nginx_conf.gsub!('DOMAINS', fetch(:domains).join(' '))
         nginx_conf.gsub!('APPLICATION', fetch(:application))
-        upload! StringIO.new(nginx_conf), "/etc/nginx/conf.d/#{fetch(:application)}.conf"
+        upload! StringIO.new(nginx_conf), "#{fetch(:deploy_to)}/tmp/nginx.conf"
+        execute :su_cp, "#{fetch(:deploy_to)}/tmp/nginx.conf /etc/nginx/conf.d/#{fetch(:application)}.conf"
         execute :systemctl, :restart, :nginx
         execute :certbot, "certonly --webroot -w /home/deploy/apps/#{fetch(:application)}/public #{fetch(:domains).collect { |d| '-d ' + d }.join(' ')} -n --agree-tos -m #{fetch(:certbot_email)} --deploy-hook 'systemctl reload nginx'"
         # remove temporary nginx.conf and link config/server/nginx.conf to /etc/nginx/conf.d
