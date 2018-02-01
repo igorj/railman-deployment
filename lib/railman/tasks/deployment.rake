@@ -9,8 +9,8 @@ task :setup do
         invoke :sync_local_dirs_to_server
       end
       server_conf_dir = "#{fetch(:deploy_to)}/config/server"
-      execute :su_ln, "-s -f #{server_conf_dir}/puma.service /lib/systemd/system/#{fetch(:application)}.service"
-      execute :su_ln, "-s -f #{server_conf_dir}/sidekiq.service /lib/systemd/system/#{fetch(:application)}_sidekiq.service"
+      execute :su_cp, "#{server_conf_dir}/puma.service /lib/systemd/system/#{fetch(:application)}.service"
+      execute :su_ln, "#{server_conf_dir}/sidekiq.service /lib/systemd/system/#{fetch(:application)}_sidekiq.service"
       execute :su_ln, "-s -f #{server_conf_dir}/logrotate.conf /etc/logrotate.d/#{fetch(:application)}"
       within fetch(:deploy_to) do
         upload! './config/master.key', "#{fetch(:deploy_to)}/config/master.key"
