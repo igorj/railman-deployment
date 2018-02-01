@@ -15,14 +15,13 @@ Gem::Specification.new do |spec|
   spec.files         = `git ls-files -z`.split("\x0").reject { |f| f.match(%r{^test/}) }
   spec.require_paths = ["lib"]
 
-  spec.add_development_dependency "bundler", "~> 1.11"
-  spec.add_development_dependency "rake", "~> 10.0"
-  spec.add_development_dependency "minitest", "~> 5.8"
-  spec.add_development_dependency "minitest-reporters", "~> 1.1"
+  spec.add_development_dependency "bundler", "~> 1.16.1"
+  spec.add_development_dependency "rake", "~> 12.3.0"
+  spec.add_development_dependency "minitest", "~> 5.11.3"
+  spec.add_development_dependency "minitest-reporters", "~> 1.1.19"
   spec.add_development_dependency "gem-release", "~> 0.7"
-  spec.add_development_dependency "geminabox", "~> 0.13"
+  spec.add_development_dependency "geminabox", "~> 0.13.15"
   spec.add_development_dependency "coveralls"
 
   spec.add_dependency "capistrano", "~> 3.6.1"
-  spec.add_dependency "eye", "~> 0.9.2"
 end
