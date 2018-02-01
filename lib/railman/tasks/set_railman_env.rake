@@ -1,8 +1,10 @@
 task :set_railman_env do
   set :deploy_to, "/home/deploy/apps/#{fetch(:application)}"
-  set :environment, {path: "#{fetch(:rbenv_home)}/shims:#{fetch(:rbenv_home)}/bin:$PATH", rails_env: 'production'}  # todo ???
+  set :environment, { rails_env: 'production'}
+  set :chruby_prefix, "/usr/local/bin/chruby-exec #{fetch(:chruby_ruby)} -- RAILS_ENV=production "
 
-  SSHKit.config.command_map[:rake] = "#{fetch(:deploy_to)}/bin/rake"
+  SSHKit.config.command_map[:rake] = "#{fetch(:chruby_prefix)} #{fetch(:deploy_to)}/bin/rake"
+  SSHKit.config.command_map[:bundle] = "#{fetch(:chruby_prefix)} #{fetch(:deploy_to)}/bin/bundle"
   %w(systemctl certbot).each do |cmd|
     SSHKit.config.command_map[cmd.to_sym] = "sudo #{cmd}"
   end
