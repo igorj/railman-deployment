@@ -138,7 +138,7 @@ task :create_database_from_sql_file do
         execute :rake, 'db:migrate'
         execute :rake, 'db:seed'
         if test "[ -f #{fetch(:deploy_to)}/db/#{fetch(:application)}.sql ]"
-          execute :psql, "-d #{fetch(:application)}_production", "-f db/#{fetch(:application)}.sql"
+          execute :psql, "-U rails -h localhost -d #{fetch(:application)}_production", "-f db/#{fetch(:application)}.sql"
           execute :rake, 'db:migrate'
         end
       end
