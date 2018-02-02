@@ -43,11 +43,6 @@ desc 'Remove the application completely from the server'
 task :remove do
   on roles(:all) do
     with fetch(:environment) do
-      # dropt the database and remove the application directory from /home/deploy/apps
-      within fetch(:deploy_to) do
-        execute :rake, 'db:drop'
-        execute :su_rm, "-rf #{fetch(:deploy_to)}"
-      end if test "[ -d #{fetch(:deploy_to)} ]"
       # stop, disable and remove systemd service files
       execute :systemctl, :stop, fetch(:application)
       execute :systemctl, :stop, "#{fetch(:application)}_sidekiq"
@@ -55,6 +50,11 @@ task :remove do
       execute :systemctl, :disable, "#{fetch(:application)}_sidekiq"
       execute :su_rm, "-f /lib/systemd/system/#{fetch(:application)}.service"
       execute :su_rm, "-f /lib/systemd/system/#{fetch(:application)}_sidekiq.service"
+      # dropt the database and remove the application directory from /home/deploy/apps
+      within fetch(:deploy_to) do
+        execute :rake, 'db:drop'
+        execute :su_rm, "-rf #{fetch(:deploy_to)}"
+      end if test "[ -d #{fetch(:deploy_to)} ]"
       # remove application nginx configuration
       execute :su_rm, "-f /etc/nginx/conf.d/#{fetch(:application)}.conf"
       execute :systemctl, :restart, :nginx
