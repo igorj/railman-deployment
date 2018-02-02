@@ -39,7 +39,6 @@ task :setup do
   end
 end
 
-# todo
 desc 'Remove the application completely from the server'
 task :remove do
   on roles(:all) do
@@ -61,7 +60,6 @@ task :remove do
       execute :systemctl, :restart, :nginx
       # remove logrotate configuration
       execute :su_rm, "-f /etc/logrotate.d/#{fetch(:application)}"
-      # todo remove letsencrypt certificates and renew cron job
     end
   end
 end
@@ -97,25 +95,6 @@ task :update do
   end
 end
 
-desc "Recreate server database from db/#{fetch(:application)}.sql and sync local dirs if any"
-task :reset_server do
-  on roles(:all) do
-    with fetch(:environment) do
-      within fetch(:deploy_to) do
-        execute :systemctl, :stop, fetch(:application)
-        execute :systemctl, :stop, "#{fetch(:application)}_sidekiq"
-        invoke :fetch_and_reset_git_repository
-        execute :rake, 'db:drop'
-        invoke :create_database_from_sql_file
-        invoke :sync_local_dirs_to_server
-        execute :systemctl, :restart, fetch(:application)
-        execute :systemctl, :restart, "#{fetch(:application)}_sidekiq"
-        execute :systemctl, :restart, :nginx
-      end
-    end
-  end
-end
-
 task :sync_local_dirs_to_server do
   on roles(:all) do
     fetch(:sync_dirs, []).each do |sync_dir|
@@ -129,8 +108,10 @@ end
 task :sync_local_dirs_from_server do
   on roles(:all) do
     fetch(:sync_dirs, []).each do |sync_dir|
-      run_locally do
-        execute "rsync -avzm --delete --force -e ssh #{fetch(:user)}@#{fetch(:server)}:#{fetch(:deploy_to)}/#{sync_dir}/ ./#{sync_dir}/"
+      if test "[ -f #{fetch(:deploy_to)}//#{sync_dir} ]"
+        run_locally do
+          execute "rsync -avzm --delete --force -e ssh #{fetch(:user)}@#{fetch(:server)}:#{fetch(:deploy_to)}/#{sync_dir}/ ./#{sync_dir}/"
+        end
       end
     end
   end

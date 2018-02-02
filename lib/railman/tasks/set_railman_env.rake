@@ -3,7 +3,7 @@ task :set_railman_env do
   set :environment, { rails_env: 'production'}
   set :chruby_prefix, "/usr/local/bin/chruby-exec #{fetch(:chruby_ruby)} -- RAILS_ENV=production "
 
-  SSHKit.config.command_map[:rake] = "#{fetch(:chruby_prefix)} #{fetch(:deploy_to)}/bin/rake"
+  SSHKit.config.command_map[:rake] = "#{fetch(:chruby_prefix)} DISABLE_DATABASE_ENVIRONMENT_CHECK=1 #{fetch(:deploy_to)}/bin/rake"
   SSHKit.config.command_map[:bundle] = "#{fetch(:chruby_prefix)} #{fetch(:deploy_to)}/bin/bundle"
   %w(systemctl certbot).each do |cmd|
     SSHKit.config.command_map[cmd.to_sym] = "sudo #{cmd}"
