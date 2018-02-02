@@ -56,7 +56,7 @@ task :remove do
       execute :su_rm, "-f /lib/systemd/system/#{fetch(:application)}.service"
       execute :su_rm, "-f /lib/systemd/system/#{fetch(:application)}_sidekiq.service"
       # remove application nginx configuration
-      execute :su_rm, "-f /etc/nginx/conf.d/#{fetch(:application)}"
+      execute :su_rm, "-f /etc/nginx/conf.d/#{fetch(:application)}.conf"
       execute :systemctl, :restart, :nginx
       # remove logrotate configuration
       execute :su_rm, "-f /etc/logrotate.d/#{fetch(:application)}"
@@ -98,8 +98,10 @@ end
 task :sync_local_dirs_to_server do
   on roles(:all) do
     fetch(:sync_dirs, []).each do |sync_dir|
-      run_locally do
-        execute "rsync -avz --delete -e ssh ./#{sync_dir}/ #{fetch(:user)}@#{fetch(:server)}:#{fetch(:deploy_to)}/#{sync_dir}/"
+      if File.exists?("./#{sync_dir}")
+        run_locally do
+          execute "rsync -avz --delete -e ssh ./#{sync_dir}/ #{fetch(:user)}@#{fetch(:server)}:#{fetch(:deploy_to)}/#{sync_dir}/"
+        end
       end
     end
   end
