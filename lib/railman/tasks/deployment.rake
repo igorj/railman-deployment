@@ -66,7 +66,6 @@ task :remove do
   end
 end
 
-# OK!
 desc 'Deploy rails application'
 task :deploy do
   on roles(:all) do
@@ -84,12 +83,11 @@ task :deploy do
   end
 end
 
-# OK!
 desc 'Copy database from the server to the local machine'
 task :update do
   on roles(:all) do
     within fetch(:deploy_to) do
-      execute :pg_dump, "-U deploy --clean #{fetch(:application)}_production > db/#{fetch(:application)}.sql"
+      execute :pg_dump, "-U rails -h localhost --clean #{fetch(:application)}_production > db/#{fetch(:application)}.sql"
       download! "#{fetch(:deploy_to)}/db/#{fetch(:application)}.sql", 'db'
     end
   end
@@ -99,7 +97,6 @@ task :update do
   end
 end
 
-# OK!
 desc "Recreate server database from db/#{fetch(:application)}.sql and sync local dirs if any"
 task :reset_server do
   on roles(:all) do
@@ -119,7 +116,6 @@ task :reset_server do
   end
 end
 
-# OK!
 task :sync_local_dirs_to_server do
   on roles(:all) do
     fetch(:sync_dirs, []).each do |sync_dir|
@@ -130,7 +126,6 @@ task :sync_local_dirs_to_server do
   end
 end
 
-# OK!
 task :sync_local_dirs_from_server do
   on roles(:all) do
     fetch(:sync_dirs, []).each do |sync_dir|
@@ -141,7 +136,6 @@ task :sync_local_dirs_from_server do
   end
 end
 
-# OK!
 task :fetch_and_reset_git_repository do
   on roles(:all) do
     with fetch(:environment) do
@@ -153,7 +147,6 @@ task :fetch_and_reset_git_repository do
   end
 end
 
-# OK!
 task :create_database_from_sql_file do
   on roles(:all) do
     with fetch(:environment) do
