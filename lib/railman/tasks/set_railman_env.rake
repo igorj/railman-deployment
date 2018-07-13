@@ -17,3 +17,4 @@ before :setup, :set_railman_env
 before :deploy, :set_railman_env
 before :update, :set_railman_env
 before :remove, :set_railman_env
+before :sync_local_dirs_from_server, :set_railman_env

@@ -81,7 +81,7 @@ task :deploy do
   end
 end
 
-desc 'Copy database from the server to the local machine'
+desc 'Copy database from the server to the local machine and sync directories from the server'
 task :update do
   on roles(:all) do
     within fetch(:deploy_to) do
