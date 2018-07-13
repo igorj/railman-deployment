@@ -98,11 +98,11 @@ end
 task :sync_local_dirs_from_server do
   on roles(:all) do
     fetch(:sync_dirs, []).each do |sync_dir|
-      #if test "[ -f #{fetch(:deploy_to)}//#{sync_dir} ]"
+      if test "[ -f #{fetch(:deploy_to)}/#{sync_dir} ]"
         run_locally do
           execute "rsync -avzm --delete --force -e ssh #{fetch(:user)}@#{fetch(:server)}:#{fetch(:deploy_to)}/#{sync_dir}/ ./#{sync_dir}/"
         end
-      #end
+      end
     end
   end
 end
