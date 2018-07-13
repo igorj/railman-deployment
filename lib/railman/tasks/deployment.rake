@@ -11,7 +11,7 @@ task :setup do
       server_conf_dir = "#{fetch(:deploy_to)}/config/server"
       execute :su_cp, "#{server_conf_dir}/puma.service /lib/systemd/system/#{fetch(:application)}.service"
       execute :su_cp, "#{server_conf_dir}/sidekiq.service /lib/systemd/system/#{fetch(:application)}_sidekiq.service"
-      execute :su_ln, "-s -f #{server_conf_dir}/logrotate.conf /etc/logrotate.d/#{fetch(:application)}"
+      execute :su_cp, "#{server_conf_dir}/logrotate.conf /etc/logrotate.d/#{fetch(:application)}"
       within fetch(:deploy_to) do
         upload! './config/master.key', "#{fetch(:deploy_to)}/config/master.key"
         execute :bundle, :install, '--without development test'
@@ -95,16 +95,24 @@ task :update do
   invoke :sync_local_dirs_from_server
 end
 
+task :sync_local_dirs_to_server do
+  on roles(:all) do
+    fetch(:sync_dirs, []).each do |sync_dir|
+      if File.exists?("./#{sync_dir}")
+        run_locally do
+          execute "rsync -avz --delete -e ssh ./#{sync_dir}/ #{fetch(:user)}@#{fetch(:server)}:#{fetch(:deploy_to)}/#{sync_dir}/"
+        end
+      end
+    end
+  end
+end
+
 task :sync_local_dirs_from_server do
   on roles(:all) do
-    with fetch(:environment) do
-      within fetch(:deploy_to) do
-        fetch(:sync_dirs, []).each do |sync_dir|
-          if test "[ -d #{fetch(:deploy_to)}/#{sync_dir} ]"
-            run_locally do
-              execute "rsync -avzm --delete --force -e ssh #{fetch(:user)}@#{fetch(:server)}:#{fetch(:deploy_to)}/#{sync_dir}/ ./#{sync_dir}/"
-            end
-          end
+    fetch(:sync_dirs, []).each do |sync_dir|
+      if test "[ -d #{fetch(:deploy_to)}/#{sync_dir} ]"
+        run_locally do
+          execute "rsync -avzm --delete --force -e ssh #{fetch(:user)}@#{fetch(:server)}:#{fetch(:deploy_to)}/#{sync_dir}/ ./#{sync_dir}/"
         end
       end
     end
