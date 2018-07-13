@@ -85,7 +85,7 @@ desc 'Copy database from the server to the local machine'
 task :update do
   on roles(:all) do
     within fetch(:deploy_to) do
-      execute :pg_dump, "-U rails -h localhost --clean #{fetch(:application)}_production > db/#{fetch(:application)}.sql"
+      execute :pg_dump, "-U rails -h localhost --clean --no-owner #{fetch(:application)}_production > db/#{fetch(:application)}.sql"
       download! "#{fetch(:deploy_to)}/db/#{fetch(:application)}.sql", 'db'
     end
   end
