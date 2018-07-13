@@ -91,20 +91,8 @@ task :update do
   end
   run_locally do
     execute "psql -d #{fetch(:application)}_development -f db/#{fetch(:application)}.sql"
-    invoke :sync_local_dirs_from_server
   end
-end
-
-task :sync_local_dirs_to_server do
-  on roles(:all) do
-    fetch(:sync_dirs, []).each do |sync_dir|
-      if File.exists?("./#{sync_dir}")
-        run_locally do
-          execute "rsync -avz --delete -e ssh ./#{sync_dir}/ #{fetch(:user)}@#{fetch(:server)}:#{fetch(:deploy_to)}/#{sync_dir}/"
-        end
-      end
-    end
-  end
+  invoke :sync_local_dirs_from_server
 end
 
 task :sync_local_dirs_from_server do
