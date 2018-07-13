@@ -1,3 +1,3 @@
 module RailmanDeployment
-  VERSION = '2.0.14'
+  VERSION = '2.1.0'
 end
