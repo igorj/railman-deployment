@@ -1,4 +1,4 @@
-desc 'Setup rails application for the first time on a server'
+desc 'Setup rails or rack application for the first time on a server'
 task :setup do
   on roles(:all) do
     with fetch(:environment) do
@@ -10,18 +10,18 @@ task :setup do
       end
       server_conf_dir = "#{fetch(:deploy_to)}/config/server"
       execute :su_cp, "#{server_conf_dir}/puma.service /lib/systemd/system/#{fetch(:application)}.service"
-      execute :su_cp, "#{server_conf_dir}/sidekiq.service /lib/systemd/system/#{fetch(:application)}_sidekiq.service"
+      execute :su_cp, "#{server_conf_dir}/sidekiq.service /lib/systemd/system/#{fetch(:application)}_sidekiq.service" if fetch(:rails_app, true)
       execute :su_cp, "#{server_conf_dir}/logrotate.conf /etc/logrotate.d/#{fetch(:application)}"
       within fetch(:deploy_to) do
-        upload! './config/master.key', "#{fetch(:deploy_to)}/config/master.key"
+        upload! './config/master.key', "#{fetch(:deploy_to)}/config/master.key" if fetch(:rails_app, true)
         execute :bundle, :install, '--without development test'
-        invoke :create_database_from_sql_file
-        execute :rake, 'assets:precompile'
+        invoke :create_database_from_sql_file if fetch(:rails_app, true)
+        execute :rake, 'assets:precompile' if fetch(:rails_app, true)
         execute :systemctl, 'daemon-reload'
         execute :systemctl, :start, fetch(:application)
-        execute :systemctl, :start, "#{fetch(:application)}_sidekiq"
+        execute :systemctl, :start, "#{fetch(:application)}_sidekiq" if fetch(:rails_app, true)
         execute :systemctl, :enable, fetch(:application)
-        execute :systemctl, :enable, "#{fetch(:application)}_sidekiq"
+        execute :systemctl, :enable, "#{fetch(:application)}_sidekiq" if fetch(:rails_app, true)
         # copy temporary simple nginx.conf only for getting letsencrypt certificate
         nginx_conf = File.read(File.join(File.dirname(__FILE__), 'nginx.conf'))
         nginx_conf.gsub!('DOMAINS', fetch(:domains).join(' '))
@@ -45,14 +45,14 @@ task :remove do
     with fetch(:environment) do
       # stop, disable and remove systemd service files
       execute :systemctl, :stop, fetch(:application)
-      execute :systemctl, :stop, "#{fetch(:application)}_sidekiq"
+      execute :systemctl, :stop, "#{fetch(:application)}_sidekiq" if fetch(:rails_app, true)
       execute :systemctl, :disable, fetch(:application)
-      execute :systemctl, :disable, "#{fetch(:application)}_sidekiq"
+      execute :systemctl, :disable, "#{fetch(:application)}_sidekiq" if fetch(:rails_app, true)
       execute :su_rm, "-f /lib/systemd/system/#{fetch(:application)}.service"
-      execute :su_rm, "-f /lib/systemd/system/#{fetch(:application)}_sidekiq.service"
+      execute :su_rm, "-f /lib/systemd/system/#{fetch(:application)}_sidekiq.service" if fetch(:rails_app, true)
       # dropt the database and remove the application directory from /home/deploy/apps
       within fetch(:deploy_to) do
-        execute :rake, 'db:drop'
+        execute :rake, 'db:drop' if fetch(:rails_app, true)
         execute :su_rm, "-rf #{fetch(:deploy_to)}"
       end if test "[ -d #{fetch(:deploy_to)} ]"
       # remove application nginx configuration
@@ -71,10 +71,10 @@ task :deploy do
       within fetch(:deploy_to) do
         invoke :fetch_and_reset_git_repository
         execute :bundle, :install
-        execute :rake, 'db:migrate'
-        execute :rake, 'assets:precompile'
+        execute :rake, 'db:migrate' if fetch(:rails_app, true)
+        execute :rake, 'assets:precompile' if fetch(:rails_app, true)
         execute :systemctl, :restart, fetch(:application)
-        execute :systemctl, :restart, "#{fetch(:application)}_sidekiq"
+        execute :systemctl, :restart, "#{fetch(:application)}_sidekiq" if fetch(:rails_app, true)
         execute :systemctl, :restart, :nginx
       end
     end
@@ -87,11 +87,11 @@ task :update do
     within fetch(:deploy_to) do
       execute :pg_dump, "-U rails -h localhost --clean --no-owner #{fetch(:application)}_production > db/#{fetch(:application)}.sql"
       download! "#{fetch(:deploy_to)}/db/#{fetch(:application)}.sql", 'db'
-    end
+    end if fetch(:rails_app, true)
   end
   run_locally do
     execute "psql -d #{fetch(:application)}_development -f db/#{fetch(:application)}.sql"
-  end
+  end if fetch(:rails_app, true)
   invoke :sync_local_dirs_from_server
 end
 
