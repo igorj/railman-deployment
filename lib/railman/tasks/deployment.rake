@@ -6,7 +6,6 @@ task :setup do
         invoke :fetch_and_reset_git_repository
       else
         execute :git, :clone, fetch(:repo_url), fetch(:deploy_to)
-        invoke :sync_local_dirs_to_server
       end
       server_conf_dir = "#{fetch(:deploy_to)}/config/server"
       execute :su_cp, "#{server_conf_dir}/puma.service /lib/systemd/system/#{fetch(:application)}.service"
@@ -93,18 +92,6 @@ task :update do
     execute "psql -d #{fetch(:application)}_development -f db/#{fetch(:application)}.sql"
   end if fetch(:rails_app, true)
   invoke :sync_local_dirs_from_server
-end
-
-task :sync_local_dirs_to_server do
-  on roles(:all) do
-    fetch(:sync_dirs, []).each do |sync_dir|
-      if File.exists?("./#{sync_dir}")
-        run_locally do
-          execute "rsync -avz --delete -e ssh ./#{sync_dir}/ #{fetch(:user)}@#{fetch(:server)}:#{fetch(:deploy_to)}/#{sync_dir}/"
-        end
-      end
-    end
-  end
 end
 
 task :sync_local_dirs_from_server do
