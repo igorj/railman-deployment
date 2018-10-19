@@ -89,6 +89,8 @@ task :update do
     end if fetch(:rails_app, true)
   end
   run_locally do
+    execute "RAILS_ENV=development DISABLE_DATABASE_ENVIRONMENT_CHECK=1 rake db:drop"
+    execute "rake db:create"
     execute "psql -d #{fetch(:application)}_development -f db/#{fetch(:application)}.sql"
   end if fetch(:rails_app, true)
   invoke :sync_local_dirs_from_server
