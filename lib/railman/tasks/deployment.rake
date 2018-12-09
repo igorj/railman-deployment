@@ -84,8 +84,8 @@ desc 'Copy database from the server to the local machine and sync directories fr
 task :update do
   on roles(:all) do
     within fetch(:deploy_to) do
-      execute :pg_dump, "-U rails -h localhost --clean --no-owner #{fetch(:application)}_production > db/#{fetch(:application)}.sql"
-      download! "#{fetch(:deploy_to)}/db/#{fetch(:application)}.sql", 'db'
+      execute :pg_dump, "-U rails -h localhost --clean --no-owner #{fetch(:application)}_production > tmp/#{fetch(:application)}.sql"
+      download! "#{fetch(:deploy_to)}/tmp/#{fetch(:application)}.sql", 'db'
     end if fetch(:rails_app, true)
   end
   run_locally do
