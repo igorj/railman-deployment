@@ -72,6 +72,10 @@ task :deploy do
         execute :bundle, :install
         execute :rake, 'db:migrate' if fetch(:rails_app, true)
         execute :rake, 'assets:precompile' if fetch(:rails_app, true)
+        server_conf_dir = "#{fetch(:deploy_to)}/config/server"
+        execute :su_cp, "#{server_conf_dir}/puma.service /lib/systemd/system/#{fetch(:application)}.service"
+        execute :su_cp, "#{server_conf_dir}/sidekiq.service /lib/systemd/system/#{fetch(:application)}_sidekiq.service" if fetch(:rails_app, true)
+        execute :su_cp, "#{server_conf_dir}/logrotate.conf /etc/logrotate.d/#{fetch(:application)}"
         execute :systemctl, :restart, fetch(:application)
         execute :systemctl, :restart, "#{fetch(:application)}_sidekiq" if fetch(:rails_app, true)
         execute :systemctl, :restart, :nginx
