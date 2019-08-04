@@ -49,6 +49,7 @@ task :remove do
       execute :systemctl, :disable, "#{fetch(:application)}_sidekiq" if fetch(:rails_app, true)
       execute :su_rm, "-f /lib/systemd/system/#{fetch(:application)}.service"
       execute :su_rm, "-f /lib/systemd/system/#{fetch(:application)}_sidekiq.service" if fetch(:rails_app, true)
+      execute :systemctl, 'daemon-reload'
       # dropt the database and remove the application directory from /home/deploy/apps
       within fetch(:deploy_to) do
         execute :rake, 'db:drop' if fetch(:rails_app, true)
@@ -76,6 +77,7 @@ task :deploy do
         execute :su_cp, "#{server_conf_dir}/puma.service /lib/systemd/system/#{fetch(:application)}.service"
         execute :su_cp, "#{server_conf_dir}/sidekiq.service /lib/systemd/system/#{fetch(:application)}_sidekiq.service" if fetch(:rails_app, true)
         execute :su_cp, "#{server_conf_dir}/logrotate.conf /etc/logrotate.d/#{fetch(:application)}"
+        execute :systemctl, 'daemon-reload'
         execute :systemctl, :restart, fetch(:application)
         execute :systemctl, :restart, "#{fetch(:application)}_sidekiq" if fetch(:rails_app, true)
         execute :systemctl, :restart, :nginx
