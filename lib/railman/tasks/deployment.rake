@@ -6,6 +6,7 @@ task :setup do
         invoke :fetch_and_reset_git_repository
       else
         execute :git, :clone, fetch(:repo_url), fetch(:deploy_to)
+        invoke :fetch_and_reset_git_repository
       end
       server_conf_dir = "#{fetch(:deploy_to)}/config/server"
       execute :su_cp, "#{server_conf_dir}/puma.service /lib/systemd/system/#{fetch(:application)}.service"
